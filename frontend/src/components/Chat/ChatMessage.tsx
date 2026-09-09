@@ -1,5 +1,7 @@
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatMessage as ChatMessageType } from '../../types';
 import { CitationBadge } from './CitationBadge';
 
@@ -59,8 +61,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
             </div>
           )}
 
-          <div className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-            {message.content}
+          <div className="text-sm text-gray-800 leading-relaxed prose prose-sm max-w-none
+            prose-headings:font-semibold prose-headings:text-slate-800
+            prose-p:my-1.5 prose-p:leading-relaxed
+            prose-ul:my-1.5 prose-ul:pl-5 prose-li:my-0.5
+            prose-ol:my-1.5 prose-ol:pl-5
+            prose-table:text-xs prose-table:border-collapse
+            prose-th:bg-slate-50 prose-th:px-3 prose-th:py-2 prose-th:border prose-th:border-slate-200 prose-th:text-left prose-th:font-semibold prose-th:text-slate-600
+            prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-slate-200
+            prose-strong:text-slate-900 prose-strong:font-semibold
+            prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded prose-code:text-xs
+            prose-blockquote:border-l-4 prose-blockquote:border-blue-300 prose-blockquote:pl-3 prose-blockquote:text-slate-600 prose-blockquote:italic">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
           </div>
 
           {message.citations?.length > 0 && (

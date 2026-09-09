@@ -24,7 +24,7 @@ class CitedResponse:
     outcome: str  # OK / NO_INFO / ACCESS_DENIED / INSUFFICIENT_CONTEXT
 
 
-_SOURCE_MARKER_RE = re.compile(r"\[SOURCE\s*(\d+)\]", re.IGNORECASE)
+_SOURCE_MARKER_RE = re.compile(r"\[\s*SOURCE\s*(\d+)\s*\]", re.IGNORECASE)
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 

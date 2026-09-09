@@ -157,6 +157,30 @@ async def run_rag_pipeline(
             outcome="NO_INFO",
         )
 
+    # ── Casual / greeting bypass (no RAG needed) ──────────────────────────────
+    _CASUAL = {"hi", "hello", "hey", "thanks", "thank you", "bye", "goodbye",
+               "what can you do", "help", "who are you", "what are you"}
+    if query.strip().lower().rstrip("!?.") in _CASUAL:
+        session = _get_or_create_session(db, user, conversation_id, query[:80])
+        greetings = {
+            "hi": "Hello! 👋 I'm Aria, your QCI Knowledge Hub assistant. Ask me anything about the documents uploaded here — tenders, agreements, proposals, and more.",
+            "hello": "Hello! 👋 I'm Aria, your QCI Knowledge Hub assistant. Ask me anything about the documents uploaded here — tenders, agreements, proposals, and more.",
+            "hey": "Hey there! I'm Aria. How can I help you with the QCI Knowledge Hub today?",
+            "thanks": "You're welcome! Let me know if you have any more questions.",
+            "thank you": "Happy to help! Feel free to ask anything else.",
+            "bye": "Goodbye! Come back anytime you need help with the documents.",
+            "goodbye": "Goodbye! Have a great day.",
+            "what can you do": "I can help you:\n\n- **Search** across all uploaded QCI documents\n- **Summarise** tender documents, MOUs, agreements\n- **Answer questions** with cited sources\n- **Scope queries** to specific documents\n\nJust ask away!",
+            "help": "I can help you:\n\n- **Search** across all uploaded QCI documents\n- **Summarise** tender documents, MOUs, agreements\n- **Answer questions** with cited sources\n- **Scope queries** to specific documents\n\nJust ask away!",
+            "who are you": "I'm **Aria**, the QCI AI Knowledge Hub assistant. I help you find information across QCI's document repository using AI-powered search.",
+            "what are you": "I'm **Aria**, the QCI AI Knowledge Hub assistant. I help you find information across QCI's document repository using AI-powered search.",
+        }
+        answer = greetings.get(query.strip().lower().rstrip("!?."), "Hello! How can I help you today?")
+        from app.ai.citations import CitedResponse as CR
+        cited = CR(answer_text=answer, citations=[], outcome="ANSWERED")
+        _persist_messages(db, session, query, cited)
+        return ChatResponse(session_id=session.id, answer=answer, citations=[], outcome="ANSWERED")
+
     # ── Stage 1: Conversation history + query rephrasing ─────────────────────
     history: List[Dict[str, str]] = []
     if conversation_id:
@@ -284,10 +308,14 @@ async def run_rag_pipeline(
     context_str = "\n\n".join(context_parts)
 
     system_prompt = (
-        "You are the QCI AI Knowledge Hub assistant. "
-        "Answer the user's question using ONLY the provided source excerpts below. "
-        "For every factual statement you make, cite the source with [SOURCE N]. "
-        "If the sources do not contain enough information, respond with exactly: INSUFFICIENT_CONTEXT\n\n"
+        "You are Aria, the QCI AI Knowledge Hub assistant — knowledgeable, professional, and friendly.\n\n"
+        "BEHAVIOUR RULES:\n"
+        "1. Greet warmly on first interaction (e.g. 'Hello! Happy to help.'). For follow-up questions in the same conversation, skip the greeting.\n"
+        "2. Answer using ONLY the source excerpts provided below. Cite every factual claim with [SOURCE N].\n"
+        "3. Format responses using Markdown: use **bold** for key terms, tables for comparisons, bullet or numbered lists for multi-part answers, and headings (##) for long structured responses.\n"
+        "4. Keep answers concise but complete. Avoid unnecessary filler.\n"
+        "5. For casual queries (greetings, thanks, 'what can you do?'), respond naturally without citing sources.\n"
+        "6. If the sources do not contain enough information to answer, respond with exactly: INSUFFICIENT_CONTEXT\n\n"
         f"Sources:\n{context_str}"
     )
 
