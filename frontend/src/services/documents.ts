@@ -1,4 +1,4 @@
-import type { Document, DocumentFilters, DocumentVersion, HRRecord, UploadMetadata } from '../types';
+import type { Chunk, Document, DocumentFilters, DocumentVersion, HRRecord, UploadMetadata } from '../types';
 import apiClient from './api';
 
 export interface SearchResult {
@@ -65,6 +65,11 @@ export async function downloadDoc(id: string): Promise<Blob> {
 
 export async function deleteDoc(id: string): Promise<void> {
   await apiClient.delete(`/documents/${id}`);
+}
+
+export async function getDocContent(id: string): Promise<Chunk[]> {
+  const response = await apiClient.get<Chunk[]>(`/documents/${id}/content`);
+  return response.data;
 }
 
 export async function getVersions(id: string): Promise<DocumentVersion[]> {

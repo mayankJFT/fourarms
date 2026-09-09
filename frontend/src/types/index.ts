@@ -33,6 +33,17 @@ export interface Document {
   file_size_bytes: number;
 }
 
+export interface Chunk {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  text: string;
+  page_number: number | null;
+  section_title: string | null;
+  token_count: number;
+  created_at: string;
+}
+
 export interface DocumentVersion {
   id: number;
   document_id: string;

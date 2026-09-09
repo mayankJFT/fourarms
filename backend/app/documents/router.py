@@ -31,6 +31,7 @@ from app.config import settings
 from app.database import get_db
 from app.documents.models import (
     Chunk,
+    ChunkOut,
     Document,
     DocumentOut,
     DocumentSearchRequest,
@@ -244,6 +245,26 @@ async def download_document(
         ip_address=request.client.host if request.client else None,
     )
     return FileResponse(version.file_path, filename=doc.file_name)
+
+
+# ── Document content (chunks) ─────────────────────────────────────────────────
+
+@router.get("/{doc_id}/content", response_model=List[ChunkOut])
+async def get_document_content(
+    doc_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    chunks = (
+        db.query(Chunk)
+        .filter(Chunk.document_id == doc_id)
+        .order_by(Chunk.chunk_index)
+        .all()
+    )
+    return chunks
 
 
 # ── Delete document ───────────────────────────────────────────────────────────
