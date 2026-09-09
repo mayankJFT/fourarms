@@ -131,18 +131,28 @@ async def health_check():
         db_status = f"error: {exc}"
 
     pinecone_status = "connected"
+    pinecone_stats = None
     try:
         from app.documents.pinecone_client import pinecone_client
         if not pinecone_client.available:
             pinecone_status = "not configured"
         else:
-            pinecone_client.get_index_stats()
+            pinecone_stats = pinecone_client.get_index_stats()
     except Exception as exc:
         pinecone_status = f"error: {exc}"
+
+    vector_count = 0
+    if isinstance(pinecone_stats, dict):
+        vector_count = pinecone_stats.get("total_vector_count", 0)
 
     return {
         "status": "ok" if db_status == "connected" else "degraded",
         "db": db_status,
         "pinecone": pinecone_status,
+        "pinecone_index": settings.PINECONE_INDEX,
+        "vector_db_status": pinecone_status,
+        "vector_count": vector_count,
+        "model": settings.GROQ_MODEL,
+        "api_version": "1.0.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

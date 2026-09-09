@@ -25,6 +25,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDocuments } from '../hooks/useDocuments';
 import * as aiService from '../services/ai';
 import * as documentsService from '../services/documents';
+import { useRepositoryStore } from '../stores/repositoryStore';
 import type { Confidentiality, Document, DocumentFilters, DocumentVersion, UploadMetadata } from '../types';
 
 type ViewMode = 'grid' | 'list';
@@ -534,13 +535,21 @@ function DocDetailPanel({
 }
 
 export function RepositoryPage() {
-  const [filters, setFilters] = useState<DocumentFilters>({});
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const {
+    searchQuery, setSearchQuery,
+    viewMode, setViewMode,
+    activeDocType, setActiveDocType,
+    activeConf, setActiveConf,
+    selectedDocId, setSelectedDocId,
+  } = useRepositoryStore();
+  const [filters] = useState<DocumentFilters>({});
+  const [selectedDoc, setSelectedDocState] = useState<Document | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [activeDocType, setActiveDocType] = useState<string>('');
-  const [activeConf, setActiveConf] = useState<string>('');
+
+  const setSelectedDoc = (doc: Document | null) => {
+    setSelectedDocState(doc);
+    setSelectedDocId(doc?.id ?? null);
+  };
 
   const queryClient = useQueryClient();
 

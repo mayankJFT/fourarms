@@ -308,6 +308,8 @@ async def run_rag_pipeline(
     for i, chunk in enumerate(top_chunks, start=1):
         meta = chunk.get("metadata", {})
         full_text = db_chunks.get(chunk["id"], meta.get("text_preview", ""))
+        # Cap per-source length so the context window isn't exhausted
+        full_text = full_text[:800]
         section = meta.get("section_title", "")
         title = meta.get("document_title", "")
         page = meta.get("page_number", "")
@@ -341,7 +343,7 @@ async def run_rag_pipeline(
 
     try:
         llm_response = groq_client.chat_completion(
-            llm_messages, temperature=0.1, max_tokens=1500
+            llm_messages, temperature=0.1, max_tokens=4096
         )
     except RuntimeError as exc:
         logger.error("LLM call failed: %s", exc)

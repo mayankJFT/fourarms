@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 import * as aiService from '../services/ai';
 import * as documentsService from '../services/documents';
+import { useChatStore } from '../stores/chatStore';
 import type { Document } from '../types';
 
 const ROLE_LABEL: Record<string, string> = {
@@ -44,10 +45,9 @@ export function ChatPage() {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
   const { messages, conversationId, isLoading, sendMessage, loadConversation, newConversation } = useChat();
+  const { scopedDocIds, docSearch, setScopedDocIds, toggleScopedDoc, setDocSearch } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDocPicker, setShowDocPicker] = useState(false);
-  const [scopedDocIds, setScopedDocIds] = useState<string[]>([]);
-  const [docSearch, setDocSearch] = useState('');
 
   const { data: allDocs = [] } = useQuery<Document[]>({
     queryKey: ['documents'],
@@ -69,7 +69,7 @@ export function ChatPage() {
   };
 
   const toggleDocScope = (docId: string) => {
-    setScopedDocIds((prev) => prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]);
+    toggleScopedDoc(docId);
   };
 
   const handleDeleteConversation = async () => {
@@ -186,7 +186,7 @@ export function ChatPage() {
           <div className="px-4 pb-4 pt-2 space-y-2 border-t border-slate-200 bg-white">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { setShowDocPicker((v) => !v); setDocSearch(''); }}
+                onClick={() => { setShowDocPicker((v) => !v); if (!showDocPicker) setDocSearch(''); }}
                 className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                   scopedDocIds.length
                     ? 'border-[#1a56db] bg-blue-50 text-[#1a56db]'

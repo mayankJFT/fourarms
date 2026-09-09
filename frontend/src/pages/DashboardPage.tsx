@@ -56,7 +56,7 @@ export function DashboardPage() {
   const { data: health } = useQuery<HealthInfo>({
     queryKey: ['health'],
     queryFn: () => apiClient.get('/health').then((r) => r.data as HealthInfo),
-    enabled: isSuperAdmin,
+    refetchInterval: 60_000,
   });
 
   const { data: auditEntries = [] } = useQuery<AuditEntry[]>({
@@ -236,34 +236,51 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {/* Platform Status for super admin */}
-            {isSuperAdmin && health && (
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-4">
-                <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
-                  <Server size={16} className="text-slate-500" />
-                  <h3 className="font-semibold text-slate-900 text-sm">Platform Status</h3>
+            {/* Platform Status */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-4">
+              <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+                <Server size={16} className="text-slate-500" />
+                <h3 className="font-semibold text-slate-900 text-sm">Platform Status</h3>
+                {health && (
                   <span
                     className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
                       health.status === 'ok' || health.status === 'healthy'
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
                     }`}
                   >
-                    {health.status}
+                    {health.status ?? 'checking…'}
                   </span>
-                </div>
-                <div className="p-4 grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <div className="text-slate-400 mb-0.5">Model</div>
-                    <div className="font-medium text-slate-700 truncate">{health.model ?? '—'}</div>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <div className="text-slate-400 mb-0.5">Pinecone</div>
-                    <div className="font-medium text-slate-700 truncate">{health.pinecone_index ?? '—'}</div>
-                  </div>
-                </div>
+                )}
               </div>
-            )}
+              <div className="p-4 grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { label: 'AI Model', value: health?.model },
+                  { label: 'API Version', value: health?.api_version },
+                  { label: 'Pinecone Index', value: health?.pinecone_index },
+                  {
+                    label: 'Vector DB',
+                    value: health?.vector_db_status
+                      ? health.vector_db_status === 'connected'
+                        ? `Connected · ${health.vector_count ?? 0} vectors`
+                        : health.vector_db_status
+                      : undefined,
+                    ok: health?.vector_db_status === 'connected',
+                  },
+                ].map(({ label, value, ok }) => (
+                  <div key={label} className="bg-slate-50 rounded-lg p-3">
+                    <div className="text-slate-400 mb-0.5">{label}</div>
+                    <div
+                      className={`font-medium truncate ${
+                        ok === false ? 'text-red-600' : ok === true ? 'text-green-700' : 'text-slate-700'
+                      }`}
+                    >
+                      {value ?? '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

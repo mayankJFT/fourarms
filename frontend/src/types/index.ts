@@ -150,10 +150,14 @@ export interface UploadMetadata {
 
 export interface HealthInfo {
   status: string;
+  db?: string;
+  pinecone?: string;
   pinecone_index?: string;
-  pinecone_stats?: Record<string, unknown>;
+  vector_db_status?: string;
+  vector_count?: number;
   model?: string;
-  version?: string;
+  api_version?: string;
+  timestamp?: string;
 }
 
 export interface TokenPayload {

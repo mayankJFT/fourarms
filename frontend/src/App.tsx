@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { ToastContainer } from './components/UI/ToastContainer';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { AdminPage } from './pages/AdminPage';
@@ -111,6 +112,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
+        <ToastContainer />
       </AuthProvider>
     </QueryClientProvider>
   );

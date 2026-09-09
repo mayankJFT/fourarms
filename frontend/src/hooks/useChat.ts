@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import type { ChatMessage } from '../types';
 import * as aiService from '../services/ai';
+import { useChatStore } from '../stores/chatStore';
 
 let msgCounter = 0;
 function nextId(): string {
@@ -8,9 +9,16 @@ function nextId(): string {
 }
 
 export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    messages,
+    conversationId,
+    isLoading,
+    addMessage,
+    setMessages,
+    setConversationId,
+    setIsLoading,
+    resetConversation,
+  } = useChatStore();
 
   const sendMessage = useCallback(
     async (query: string, scopeDocIds?: string[]) => {
@@ -22,13 +30,13 @@ export function useChat() {
         timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, userMsg]);
+      addMessage(userMsg);
       setIsLoading(true);
 
       try {
         const response = await aiService.chat(query, conversationId, scopeDocIds);
         setConversationId(response.conversation_id);
-        setMessages((prev) => [...prev, response.message]);
+        addMessage(response.message);
       } catch {
         const errMsg: ChatMessage = {
           id: nextId(),
@@ -38,12 +46,12 @@ export function useChat() {
           timestamp: new Date().toISOString(),
           guardrail_outcome: 'NO_INFO',
         };
-        setMessages((prev) => [...prev, errMsg]);
+        addMessage(errMsg);
       } finally {
         setIsLoading(false);
       }
     },
-    [conversationId],
+    [conversationId, addMessage, setConversationId, setIsLoading],
   );
 
   const loadConversation = useCallback(async (id: string) => {
@@ -57,12 +65,11 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setMessages, setConversationId, setIsLoading]);
 
   const newConversation = useCallback(() => {
-    setMessages([]);
-    setConversationId(undefined);
-  }, []);
+    resetConversation();
+  }, [resetConversation]);
 
   return { messages, conversationId, isLoading, sendMessage, loadConversation, newConversation };
 }
