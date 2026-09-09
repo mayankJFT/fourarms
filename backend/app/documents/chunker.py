@@ -1,4 +1,4 @@
-"""Text chunking with configurable token size and overlap."""
+"""Text chunking — section-aware, with header stripping and overlap."""
 
 from __future__ import annotations
 
@@ -7,13 +7,58 @@ from typing import Generator, Optional
 
 from app.config import settings
 
+# Patterns that indicate a section heading inside PDF text
+_HEADING_RE = re.compile(
+    r"^("
+    r"[IVX]+\.\s+[A-Z]"           # Roman numeral: "II. SCOPE"
+    r"|[0-9]+\.\s+[A-Z]"           # Numbered: "1. Introduction"
+    r"|[A-Z][A-Z\s]{4,}$"          # ALL CAPS line ≥ 5 chars
+    r")"
+)
 
-def _split_sentences(text: str) -> list[str]:
-    """Split text into sentences on '. ', '? ', '! ', or newlines."""
-    # Split on sentence boundaries
-    parts = re.split(r"(?<=[.?!])\s+|\n{2,}", text.strip())
-    # Filter out empty strings
-    return [p.strip() for p in parts if p.strip()]
+# Repeated title header that pdfplumber extracts on every page
+_TITLE_STRIP_RE = re.compile(
+    r"TENDER DOCUMENT FOR ENGAGEMENT.*?QCI/\d+/\d+\s*",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _clean_page_text(text: str) -> str:
+    """Remove repeated title banner and page artefacts."""
+    text = _TITLE_STRIP_RE.sub("", text)
+    # Collapse 3+ blank lines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _split_into_sections(text: str) -> list[tuple[Optional[str], str]]:
+    """
+    Split *text* on heading lines, returning list of (heading, body) pairs.
+    If no headings found, returns [(None, text)].
+    """
+    lines = text.splitlines()
+    sections: list[tuple[Optional[str], str]] = []
+    current_heading: Optional[str] = None
+    current_body: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped and _HEADING_RE.match(stripped):
+            # Flush previous section
+            body = "\n".join(current_body).strip()
+            if body:
+                sections.append((current_heading, body))
+            current_heading = stripped
+            current_body = []
+        else:
+            current_body.append(line)
+
+    # Flush last section
+    body = "\n".join(current_body).strip()
+    if body:
+        sections.append((current_heading, body))
+
+    return sections if sections else [(None, text)]
 
 
 def chunk_text(
@@ -24,58 +69,44 @@ def chunk_text(
     section_title: Optional[str] = None,
 ) -> Generator[dict, None, None]:
     """
-    Split *text* into overlapping chunks, each with approximately *chunk_size*
-    tokens (words).  Overlap is achieved by re-including the last *overlap* words
-    of the previous chunk at the start of the next one.
+    Section-aware chunker.
 
-    Yields dicts with keys:
-        text, chunk_index, page_number, section_title, token_count
+    1. Cleans repeated headers.
+    2. Splits on detected headings.
+    3. Yields overlapping word-level chunks, each tagged with its section.
     """
-    sentences = _split_sentences(text)
-    if not sentences:
+    text = _clean_page_text(text)
+    if not text:
         return
 
-    current_words: list[str] = []
+    # If caller already supplied a section_title (e.g. DOCX headings), skip detection
+    if section_title is not None:
+        sections = [(section_title, text)]
+    else:
+        sections = _split_into_sections(text)
+
     chunk_index = 0
+    for heading, body in sections:
+        effective_title = heading or section_title
+        # Prefix each chunk with its section heading for better embedding
+        prefix = f"{effective_title}: " if effective_title else ""
+        words = body.split()
+        if not words:
+            continue
 
-    for sentence in sentences:
-        sentence_words = sentence.split()
-        # If adding this sentence would exceed the limit, emit what we have
-        if current_words and (len(current_words) + len(sentence_words)) > chunk_size:
-            chunk_text_str = " ".join(current_words)
+        start = 0
+        while start < len(words):
+            end = min(start + chunk_size, len(words))
+            chunk_words = words[start:end]
+            chunk_str = prefix + " ".join(chunk_words)
             yield {
-                "text": chunk_text_str,
+                "text": chunk_str,
                 "chunk_index": chunk_index,
                 "page_number": page_number,
-                "section_title": section_title,
-                "token_count": len(current_words),
+                "section_title": effective_title,
+                "token_count": len(chunk_words),
             }
             chunk_index += 1
-            # Carry over the last *overlap* words for context continuity
-            current_words = current_words[-overlap:] if overlap > 0 else []
-
-        current_words.extend(sentence_words)
-
-        # Force-emit if a single sentence is already larger than chunk_size
-        while len(current_words) >= chunk_size:
-            chunk_text_str = " ".join(current_words[:chunk_size])
-            yield {
-                "text": chunk_text_str,
-                "chunk_index": chunk_index,
-                "page_number": page_number,
-                "section_title": section_title,
-                "token_count": chunk_size,
-            }
-            chunk_index += 1
-            current_words = current_words[chunk_size - overlap:] if overlap > 0 else current_words[chunk_size:]
-
-    # Emit any remaining words
-    if current_words:
-        chunk_text_str = " ".join(current_words)
-        yield {
-            "text": chunk_text_str,
-            "chunk_index": chunk_index,
-            "page_number": page_number,
-            "section_title": section_title,
-            "token_count": len(current_words),
-        }
+            if end >= len(words):
+                break
+            start = end - overlap

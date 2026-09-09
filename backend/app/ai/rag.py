@@ -297,26 +297,40 @@ async def run_rag_pipeline(
         )
 
     # ── Stage 5: Build context and call Groq ─────────────────────────────────
+    # Fetch full chunk text from SQLite (Pinecone only stores a 200-char preview)
+    chunk_ids = [c["id"] for c in top_chunks]
+    db_chunks: Dict[str, Any] = {
+        row.id: row.text
+        for row in db.query(Chunk).filter(Chunk.id.in_(chunk_ids)).all()
+    }
+
     context_parts: List[str] = []
     for i, chunk in enumerate(top_chunks, start=1):
         meta = chunk.get("metadata", {})
-        text = meta.get("text_preview", "")
+        full_text = db_chunks.get(chunk["id"], meta.get("text_preview", ""))
+        section = meta.get("section_title", "")
         title = meta.get("document_title", "")
         page = meta.get("page_number", "")
-        context_parts.append(f"[SOURCE {i}] (Document: {title}, Page: {page})\n{text}")
+        header = f"[SOURCE {i}] {title}"
+        if section:
+            header += f" — {section}"
+        if page:
+            header += f" (p.{page})"
+        context_parts.append(f"{header}\n{full_text}")
 
     context_str = "\n\n".join(context_parts)
 
     system_prompt = (
-        "You are Aria, the QCI AI Knowledge Hub assistant — knowledgeable, professional, and friendly.\n\n"
-        "BEHAVIOUR RULES:\n"
-        "1. Greet warmly on first interaction (e.g. 'Hello! Happy to help.'). For follow-up questions in the same conversation, skip the greeting.\n"
-        "2. Answer using ONLY the source excerpts provided below. Cite every factual claim with [SOURCE N].\n"
-        "3. Format responses using Markdown: use **bold** for key terms, tables for comparisons, bullet or numbered lists for multi-part answers, and headings (##) for long structured responses.\n"
-        "4. Keep answers concise but complete. Avoid unnecessary filler.\n"
-        "5. For casual queries (greetings, thanks, 'what can you do?'), respond naturally without citing sources.\n"
-        "6. If the sources do not contain enough information to answer, respond with exactly: INSUFFICIENT_CONTEXT\n\n"
-        f"Sources:\n{context_str}"
+        "You are Aria, the QCI AI Knowledge Hub assistant — precise, professional, and helpful.\n\n"
+        "STRICT RULES:\n"
+        "1. Answer ONLY from the source excerpts below. Do NOT infer, extrapolate, or add knowledge not present in the sources.\n"
+        "2. Cite every factual claim inline with [SOURCE N] immediately after the sentence it supports.\n"
+        "3. If multiple sources say the same thing, cite all relevant ones: [SOURCE 1][SOURCE 3].\n"
+        "4. Format in Markdown: **bold** key terms, bullet/numbered lists for multi-part answers, tables for comparisons, ## headings for long structured responses.\n"
+        "5. Be concise. Do not pad the response. One clear sentence is better than three vague ones.\n"
+        "6. If the exact answer is NOT in the sources, respond with exactly: INSUFFICIENT_CONTEXT\n"
+        "7. Do not hallucinate section names, clause numbers, or details not present in the excerpts.\n\n"
+        f"Source excerpts:\n{context_str}"
     )
 
     llm_messages = [
