@@ -24,6 +24,9 @@ backend/*.db
 backend/uploads/
 backend/hr/
 
+# ── Local sandbox-only tool extractions (e.g. tesseract with no root access) ─
+backend/.local-tools/
+
 # ── Node / Frontend ─────────────────────────────────────────────────────────
 node_modules/
 frontend/node_modules/

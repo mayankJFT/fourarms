@@ -28,6 +28,7 @@ class GeneratedDocument(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     doc_type: Mapped[str] = mapped_column(String(100), nullable=False)           # proposal/mou/agreement/work_order
     template_variant: Mapped[int] = mapped_column(Integer, default=1)
+    template_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # DocumentTemplate whose format was mimicked, if any
     content_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # Structured content
     state: Mapped[str] = mapped_column(String(20), nullable=False, default="DRAFT")  # DRAFT/REVIEW/APPROVED
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -71,6 +72,7 @@ class GeneratedDocumentOut(BaseModel):
     title: str
     doc_type: str
     template_variant: int
+    template_id: Optional[str] = None
     content_json: str
     state: str
     owner_id: int

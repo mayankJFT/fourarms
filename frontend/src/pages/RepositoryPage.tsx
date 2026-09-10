@@ -24,9 +24,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useDocuments } from '../hooks/useDocuments';
 import * as documentsService from '../services/documents';
 import { useRepositoryStore } from '../stores/repositoryStore';
+import { DOCUMENT_CATEGORIES } from '../types';
 import type { Confidentiality, Document, DocumentFilters, UploadMetadata } from '../types';
 
-const DOC_TYPES = ['PROPOSAL', 'MOU', 'AGREEMENT', 'WORK_ORDER'];
 const CONFIDENTIALITIES: Confidentiality[] = ['PUBLIC', 'INTERNAL', 'RESTRICTED', 'CONFIDENTIAL'];
 
 const confidentialityColor: Record<Confidentiality, string> = {
@@ -42,6 +42,8 @@ export function RepositoryPage() {
     viewMode, setViewMode,
     activeDocType, setActiveDocType,
     activeConf, setActiveConf,
+    activeDivision, setActiveDivision,
+    activeProject, setActiveProject,
     setSelectedDocId,
   } = useRepositoryStore();
   const [selectedDoc, setSelectedDocState] = useState<Document | null>(null);
@@ -57,11 +59,13 @@ export function RepositoryPage() {
     ...(searchQuery ? { query: searchQuery } : {}),
     ...(activeDocType ? { doc_type: [activeDocType] } : {}),
     ...(activeConf ? { confidentiality: [activeConf as Confidentiality] } : {}),
+    ...(activeDivision ? { division: activeDivision } : {}),
+    ...(activeProject ? { project: activeProject } : {}),
   };
 
   const { documents, isLoading, upload, deleteDoc, isUploading } = useDocuments(activeFilters);
-  const { hasAnyRole } = useAuth();
-  const isAdmin = hasAnyRole(['SUPER_ADMIN', 'BOARD_ADMIN']);
+  const { currentUser, hasAnyRole } = useAuth();
+  const isSuperAdmin = hasAnyRole(['SUPER_ADMIN']);
 
   const handleDelete = async (id: string) => {
     await deleteDoc(id);
@@ -110,6 +114,23 @@ export function RepositoryPage() {
             )}
           </div>
 
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={activeDivision}
+              onChange={(e) => setActiveDivision(e.target.value)}
+              placeholder="Filter by department / division…"
+              className="flex-1 text-sm px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1a56db] bg-white text-slate-800"
+            />
+            <input
+              type="text"
+              value={activeProject}
+              onChange={(e) => setActiveProject(e.target.value)}
+              placeholder="Filter by project…"
+              className="flex-1 text-sm px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1a56db] bg-white text-slate-800"
+            />
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setActiveDocType('')}
@@ -119,7 +140,7 @@ export function RepositoryPage() {
             >
               All Types
             </button>
-            {DOC_TYPES.map((t) => (
+            {DOCUMENT_CATEGORIES.map((t) => (
               <button
                 key={t}
                 onClick={() => setActiveDocType(activeDocType === t ? '' : t)}
@@ -179,13 +200,20 @@ export function RepositoryPage() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {documents.map((doc) => (
-              <GridCard key={doc.id} doc={doc} onClick={setSelectedDoc} isAdmin={isAdmin} onDelete={handleDelete} />
+              <GridCard
+                key={doc.id}
+                doc={doc}
+                onClick={setSelectedDoc}
+                isAdmin={isSuperAdmin || doc.uploader_id === currentUser?.id}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         ) : (
           <ListTable
             documents={documents}
-            isAdmin={isAdmin}
+            isSuperAdmin={isSuperAdmin}
+            currentUserId={currentUser?.id}
             onSelect={setSelectedDoc}
             onDelete={handleDelete}
           />
@@ -210,12 +238,14 @@ export function RepositoryPage() {
 
 function ListTable({
   documents,
-  isAdmin,
+  isSuperAdmin,
+  currentUserId,
   onSelect,
   onDelete,
 }: {
   documents: Document[];
-  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  currentUserId: number | undefined;
   onSelect: (doc: Document) => void;
   onDelete: (id: string) => void;
 }) {
@@ -234,7 +264,13 @@ function ListTable({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {documents.map((doc) => (
-              <ListRow key={doc.id} doc={doc} isAdmin={isAdmin} onSelect={onSelect} onDelete={onDelete} />
+              <ListRow
+                key={doc.id}
+                doc={doc}
+                isAdmin={isSuperAdmin || doc.uploader_id === currentUserId}
+                onSelect={onSelect}
+                onDelete={onDelete}
+              />
             ))}
           </tbody>
         </table>

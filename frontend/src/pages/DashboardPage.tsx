@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import {
   Activity,
   ArrowRight,
@@ -17,6 +17,7 @@ import { StatCard } from '../components/UI/StatCard';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../services/api';
 import type { AuditEntry, HealthInfo } from '../types';
+import { actionBadgeClass } from '../utils/auditActions';
 
 export function DashboardPage() {
   const { currentUser, hasAnyRole } = useAuth();
@@ -62,6 +63,7 @@ export function DashboardPage() {
   const { data: auditEntries = [] } = useQuery<AuditEntry[]>({
     queryKey: ['audit', 'recent'],
     queryFn: () => apiClient.get('/audit/logs', { params: { limit: 10 } }).then((r) => r.data as AuditEntry[]),
+    enabled: isAdmin, // /audit/logs is SUPER_ADMIN/BOARD_ADMIN only — don't even ask for standard users
   });
 
   const indexedCount = (documents as Array<{ is_indexed?: boolean }>).filter((d) => d.is_indexed).length;
@@ -94,20 +96,6 @@ export function DashboardPage() {
         }]
       : []),
   ];
-
-  function actionBadge(action: string): string {
-    switch (action) {
-      case 'LOGIN': return 'bg-green-100 text-green-700';
-      case 'LOGOUT': return 'bg-slate-100 text-slate-600';
-      case 'UPLOAD': return 'bg-blue-100 text-blue-700';
-      case 'QUERY': return 'bg-purple-100 text-purple-700';
-      case 'DOWNLOAD': return 'bg-teal-100 text-teal-700';
-      case 'DELETE': return 'bg-red-100 text-red-700';
-      case 'ROLE_CHANGE': return 'bg-amber-100 text-amber-700';
-      case 'WORKFLOW_TRANSITION': return 'bg-indigo-100 text-indigo-700';
-      default: return 'bg-slate-100 text-slate-600';
-    }
-  }
 
   return (
     <AppLayout title="Dashboard">
@@ -174,44 +162,46 @@ export function DashboardPage() {
         </div>
 
         {/* Two column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Recent Activity - 60% */}
-          <div className="lg:col-span-3">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
-                <Activity size={16} className="text-slate-500" />
-                <h3 className="font-semibold text-slate-900 text-sm">Recent Activity</h3>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {auditEntries.length === 0 && (
-                  <div className="px-5 py-10 text-center text-sm text-slate-400">
-                    No recent activity.
-                  </div>
-                )}
-                {auditEntries.map((entry) => (
-                  <div key={entry.id} className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-slate-700 truncate">{entry.user_email}</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${actionBadge(entry.action)}`}>
-                          {entry.action}
-                        </span>
-                        {entry.resource_type && (
-                          <span className="text-xs text-slate-400">{entry.resource_type}</span>
-                        )}
+        <div className={`grid grid-cols-1 gap-6 ${isAdmin ? 'lg:grid-cols-5' : ''}`}>
+          {/* Recent Activity — admin only; standard users have no audit-log access */}
+          {isAdmin && (
+            <div className="lg:col-span-3">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+                  <Activity size={16} className="text-slate-500" />
+                  <h3 className="font-semibold text-slate-900 text-sm">Recent Activity</h3>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {auditEntries.length === 0 && (
+                    <div className="px-5 py-10 text-center text-sm text-slate-400">
+                      No recent activity.
+                    </div>
+                  )}
+                  {auditEntries.map((entry) => (
+                    <div key={entry.id} className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-slate-700 truncate">{entry.user_email}</span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${actionBadgeClass(entry.action)}`}>
+                            {entry.action}
+                          </span>
+                          {entry.resource_type && (
+                            <span className="text-xs text-slate-400">{entry.resource_type}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-400 flex-shrink-0 pt-0.5 font-mono">
+                        {format(new Date(entry.timestamp), 'MMM d, yyyy, h:mm:ss a')}
                       </div>
                     </div>
-                    <div className="text-xs text-slate-400 flex-shrink-0 pt-0.5">
-                      {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Quick Actions - 40% */}
-          <div className="lg:col-span-2">
+          {/* Quick Actions */}
+          <div className={isAdmin ? 'lg:col-span-2' : ''}>
             <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-200">
                 <h3 className="font-semibold text-slate-900 text-sm">Quick Actions</h3>

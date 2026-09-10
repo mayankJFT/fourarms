@@ -17,7 +17,6 @@ interface UploadZoneProps {
 }
 
 const DEFAULT_METADATA: UploadMetadata = {
-  doc_type: '',
   confidentiality: 'INTERNAL',
   division: '',
   project: '',
@@ -62,8 +61,8 @@ export function UploadZone({ onUpload }: UploadZoneProps) {
   };
 
   const handleUploadAll = async () => {
-    if (!metadata.doc_type || !metadata.confidentiality) {
-      alert('Please fill in Document Type and Confidentiality before uploading.');
+    if (!metadata.confidentiality) {
+      alert('Please select a Confidentiality level before uploading.');
       return;
     }
 

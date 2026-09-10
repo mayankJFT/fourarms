@@ -75,7 +75,7 @@ export function DocGenPage() {
     if (!selection) return;
     setIsGenerating(true);
     try {
-      const result = await aiService.generate(selection.docType, selection.templateVariant, inputs);
+      const result = await aiService.generate(selection.docType, selection.templateVariant, inputs, selection.templateId);
       setGenerated(result);
 
       // Fetch the created workflow doc

@@ -40,10 +40,11 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Pinecone init skipped: %s", exc)
 
-    # 3. Warm up embedding model
+    # 3. Warm up embedding model (loads the local model if EMBEDDING_PROVIDER=local;
+    # a no-op-ish single API call if EMBEDDING_PROVIDER=openai)
     try:
-        from app.documents.ingestion import get_embedding_model
-        get_embedding_model()
+        from app.documents.embeddings import embed_texts
+        embed_texts(["warmup"])
         logger.info("Embedding model loaded")
     except Exception as exc:
         logger.warning("Embedding model warm-up failed: %s", exc)
@@ -110,12 +111,14 @@ from app.documents.router import router as documents_router
 from app.ai.router import router as ai_router
 from app.workflow.router import router as workflow_router
 from app.audit.router import router as audit_router
+from app.admin.router import router as admin_router
 
 app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(ai_router)
 app.include_router(workflow_router)
 app.include_router(audit_router)
+app.include_router(admin_router)
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
@@ -152,7 +155,7 @@ async def health_check():
         "pinecone_index": settings.PINECONE_INDEX,
         "vector_db_status": pinecone_status,
         "vector_count": vector_count,
-        "model": settings.GROQ_MODEL,
+        "model": settings.OPENAI_MODEL if settings.LLM_PROVIDER.strip().lower() == "openai" else settings.GROQ_MODEL,
         "api_version": "1.0.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

@@ -2,7 +2,7 @@ export type Role = "SUPER_ADMIN" | "BOARD_ADMIN" | "STANDARD_USER" | "TENDER_AUT
 export type DocState = "DRAFT" | "REVIEW" | "APPROVED";
 export type DocType = "PROPOSAL" | "MOU" | "AGREEMENT" | "WORK_ORDER";
 export type Confidentiality = "PUBLIC" | "INTERNAL" | "RESTRICTED" | "CONFIDENTIAL";
-export type GuardrailOutcome = "ANSWERED" | "NO_INFO" | "ACCESS_DENIED";
+export type GuardrailOutcome = "OK" | "NO_INFO" | "ACCESS_DENIED" | "INSUFFICIENT_CONTEXT" | "OUT_OF_SCOPE";
 
 export interface User {
   id: number;
@@ -31,7 +31,32 @@ export interface Document {
   tags: string[];
   ai_abstract?: string;
   file_size_bytes: number;
+  ai_detected_type?: string | null;
+  category_confirmed: boolean;
+  ingestion_error?: string | null;
 }
+
+export interface DocumentShare {
+  id: number;
+  document_id: string;
+  shared_with_user_id: number;
+  shared_with_email: string;
+  shared_by_user_id: number;
+  created_at: string;
+}
+
+/** The fixed category buckets the AI classifier maps documents onto. Keep in sync with
+ * backend/app/documents/classifier.py:DOCUMENT_CATEGORIES. */
+export const DOCUMENT_CATEGORIES = [
+  'Internal',
+  'External',
+  'Confidential',
+  'Legal',
+  'Financial',
+  'HR',
+  'Technical',
+  'Other',
+] as const;
 
 export interface Chunk {
   id: string;
@@ -77,18 +102,42 @@ export interface Conversation {
   title: string;
   created_at: string;
   updated_at: string;
+  user_id: number;
+  user_email?: string | null; // populated only when a SUPER_ADMIN is viewing another user's chat
 }
 
+export interface GeneratedDocSection {
+  heading: string;
+  content: string;
+}
+
+// The backend stores generated document body as a JSON string (content_json):
+// {title, reference_number, sections: [{heading, content}]}. It is not a flat
+// markdown/plain-text field — parse it before rendering.
 export interface GeneratedDocument {
   id: string;
   title: string;
   doc_type: DocType;
   template_variant: number;
+  template_id?: string | null;
   state: DocState;
   owner_id: number;
   created_at: string;
   updated_at: string;
-  content?: string;
+  content_json: string;
+}
+
+// A user-uploaded reference document (per DocType category) whose structure the
+// AI mimics when generating a new document of that type.
+export interface DocumentTemplate {
+  id: string;
+  doc_type: DocType;
+  title: string;
+  file_name: string;
+  file_type: string;
+  outline: string[];
+  uploaded_by: number;
+  created_at: string;
 }
 
 export interface WorkflowDoc {
@@ -100,7 +149,7 @@ export interface WorkflowDoc {
   owner_id: number;
   created_at: string;
   updated_at: string;
-  content?: string;
+  content_json: string;
 }
 
 export interface WorkflowEvent {
@@ -149,10 +198,10 @@ export interface DocumentFilters {
   confidentiality?: Confidentiality[];
   indexed_only?: boolean;
   division?: string;
+  project?: string;
 }
 
 export interface UploadMetadata {
-  doc_type: string;
   confidentiality: Confidentiality;
   division?: string;
   project?: string;

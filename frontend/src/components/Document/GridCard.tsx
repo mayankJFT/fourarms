@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { CheckCircle, Clock, Download, FileText, Loader2, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Download, FileText, Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import * as documentsService from '../../services/documents';
 import type { Confidentiality, Document } from '../../types';
@@ -62,6 +62,10 @@ export function GridCard({ doc, onClick, isAdmin, onDelete }: Props) {
         {doc.is_indexed ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">
             <CheckCircle size={9} /> Indexed
+          </span>
+        ) : doc.ingestion_error ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100" title={doc.ingestion_error}>
+            <AlertTriangle size={9} /> Failed
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">

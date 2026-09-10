@@ -12,10 +12,13 @@ export function useChat() {
   const {
     messages,
     conversationId,
+    conversationOwnerId,
+    conversationOwnerEmail,
     isLoading,
     addMessage,
     setMessages,
     setConversationId,
+    setConversationOwner,
     setIsLoading,
     resetConversation,
   } = useChatStore();
@@ -36,6 +39,7 @@ export function useChat() {
       try {
         const response = await aiService.chat(query, conversationId, scopeDocIds);
         setConversationId(response.conversation_id);
+        setConversationOwner(undefined, undefined); // sending always targets/creates your own conversation
         addMessage(response.message);
       } catch {
         const errMsg: ChatMessage = {
@@ -51,25 +55,35 @@ export function useChat() {
         setIsLoading(false);
       }
     },
-    [conversationId, addMessage, setConversationId, setIsLoading],
+    [conversationId, addMessage, setConversationId, setConversationOwner, setIsLoading],
   );
 
   const loadConversation = useCallback(async (id: string) => {
     setIsLoading(true);
     try {
-      const history = await aiService.getConversation(id);
-      setMessages(history);
+      const detail = await aiService.getConversation(id);
+      setMessages(detail.messages);
       setConversationId(id);
+      setConversationOwner(detail.ownerId, detail.ownerEmail);
     } catch {
       // silently fail
     } finally {
       setIsLoading(false);
     }
-  }, [setMessages, setConversationId, setIsLoading]);
+  }, [setMessages, setConversationId, setConversationOwner, setIsLoading]);
 
   const newConversation = useCallback(() => {
     resetConversation();
   }, [resetConversation]);
 
-  return { messages, conversationId, isLoading, sendMessage, loadConversation, newConversation };
+  return {
+    messages,
+    conversationId,
+    conversationOwnerId,
+    conversationOwnerEmail,
+    isLoading,
+    sendMessage,
+    loadConversation,
+    newConversation,
+  };
 }

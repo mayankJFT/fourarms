@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+// 127.0.0.1, not 'localhost' — some hosts resolve 'localhost' to the IPv6
+// loopback first, which the backend (bound to an IPv4 socket) can't answer.
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

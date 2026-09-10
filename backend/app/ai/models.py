@@ -57,6 +57,26 @@ class ConversationMessage(Base):
     session: Mapped["ConversationSession"] = relationship("ConversationSession", back_populates="messages")
 
 
+class DocumentTemplate(Base):
+    """A user-uploaded reference document (per generation category) whose
+    structure/format the AI mimics when generating a new document of that type."""
+
+    __tablename__ = "document_templates"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_new_uuid)
+    doc_type: Mapped[str] = mapped_column(String(50), nullable=False)  # PROPOSAL/MOU/AGREEMENT/WORK_ORDER
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    outline_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # list of section headings, for display
+    content_text: Mapped[str] = mapped_column(Text, nullable=False, default="")     # extracted text fed to the LLM as the format to mimic
+    uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Pydantic Schemas
 # ─────────────────────────────────────────────────────────────────────────────
@@ -94,6 +114,8 @@ class ConversationSessionOut(BaseModel):
     title: str
     created_at: datetime
     updated_at: datetime
+    user_id: int
+    user_email: Optional[str] = None  # populated for SUPER_ADMIN viewing other users' chats
 
     model_config = {"from_attributes": True}
 
@@ -128,4 +150,18 @@ class SummariseMultiRequest(BaseModel):
 class GenerateRequest(BaseModel):
     doc_type: str                         # proposal / mou / agreement / work_order
     template_variant: int = 1
+    template_id: Optional[str] = None     # uploaded DocumentTemplate to mimic the format of
     inputs: Dict[str, Any] = {}
+
+
+class DocumentTemplateOut(BaseModel):
+    id: str
+    doc_type: str
+    title: str
+    file_name: str
+    file_type: str
+    outline: List[str]
+    uploaded_by: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

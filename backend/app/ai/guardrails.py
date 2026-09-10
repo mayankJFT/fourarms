@@ -57,13 +57,18 @@ def scrub_prompt_injection(text: str) -> str:
     return "\n".join(cleaned)
 
 
-def build_no_info_response() -> Dict[str, Any]:
-    """Standard response when the knowledge base has no relevant information."""
+def build_no_info_response(query: str = "") -> Dict[str, Any]:
+    """Friendly response when the knowledge base has no relevant information — invites a follow-up instead of a dead end."""
+    subject = f' about "{query.strip()}"' if query.strip() else ""
     return {
         "answer_text": (
-            "I could not find relevant information in the QCI Knowledge Hub to answer "
-            "your question. Please try rephrasing your query or check that the relevant "
-            "documents have been uploaded and indexed."
+            f"I couldn't find anything{subject} in the documents I currently have access to — "
+            "but let's narrow it down together. A few things that might help:\n\n"
+            "- Do you have a specific **document name, tender number, or date** in mind?\n"
+            "- Could you rephrase the question, or add a bit more detail about what you're looking for?\n"
+            "- If the document exists but hasn't been added yet, you (or an admin) can upload it from the "
+            "**Repository** page and I'll be able to search it right away.\n\n"
+            "What would you like to try next?"
         ),
         "citations": [],
         "outcome": "NO_INFO",

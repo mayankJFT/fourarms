@@ -5,15 +5,6 @@ interface MetadataFormProps {
   onChange: (value: UploadMetadata) => void;
 }
 
-const DOC_TYPES = [
-  { value: 'PROPOSAL', label: 'Proposal' },
-  { value: 'MOU', label: 'MOU' },
-  { value: 'AGREEMENT', label: 'Agreement' },
-  { value: 'WORK_ORDER', label: 'Work Order' },
-  { value: 'POLICY', label: 'Policy' },
-  { value: 'OTHER', label: 'Other' },
-];
-
 const CONFIDENTIALITY_LEVELS: { value: Confidentiality; label: string }[] = [
   { value: 'PUBLIC', label: 'Public' },
   { value: 'INTERNAL', label: 'Internal' },
@@ -26,21 +17,9 @@ export function MetadataForm({ value, onChange }: MetadataFormProps) {
 
   return (
     <div className="space-y-3">
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Document Type *</label>
-        <select
-          value={value.doc_type}
-          onChange={(e) => update({ doc_type: e.target.value })}
-          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-        >
-          <option value="">Select type…</option>
-          {DOC_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+        Aria will suggest a document category automatically after upload.
+      </p>
 
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">

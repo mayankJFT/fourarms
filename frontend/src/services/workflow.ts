@@ -18,9 +18,9 @@ export async function getGenerated(id: string): Promise<GeneratedDocument> {
   return response.data;
 }
 
-export async function updateDraft(id: string, content: string): Promise<GeneratedDocument> {
+export async function updateDraft(id: string, contentJson: string): Promise<GeneratedDocument> {
   const response = await apiClient.put<GeneratedDocument>(`/workflow/documents/${id}`, {
-    content,
+    content_json: contentJson,
   });
   return response.data;
 }
@@ -40,6 +40,10 @@ export async function revise(id: string, comment: string): Promise<GeneratedDocu
     comment,
   });
   return response.data;
+}
+
+export async function deleteGenerated(id: string): Promise<void> {
+  await apiClient.delete(`/workflow/documents/${id}`);
 }
 
 export async function exportDocx(id: string): Promise<Blob> {

@@ -2,6 +2,7 @@ import { CheckCircle2, Loader2, Plus, Server, Shield, Trash2, Users, XCircle } f
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '../components/Layout/AppLayout';
+import { DangerZone } from '../components/Admin/DangerZone';
 import { Badge } from '../components/UI/Badge';
 import { ConfirmModal } from '../components/UI/ConfirmModal';
 import { PageHeader } from '../components/UI/PageHeader';
@@ -448,9 +449,14 @@ export function AdminPage() {
                 <div className="p-6 grid grid-cols-2 gap-4 text-sm">
                   {[
                     { label: 'AI Model', value: health.model ?? '—' },
-                    { label: 'API Version', value: health.version ?? '—' },
+                    { label: 'API Version', value: health.api_version ?? '—' },
                     { label: 'Pinecone Index', value: health.pinecone_index ?? '—' },
-                    { label: 'Vector DB Status', value: health.pinecone_stats ? 'Connected' : '—' },
+                    {
+                      label: 'Vector DB Status',
+                      value: health.vector_db_status === 'connected'
+                        ? `Connected · ${health.vector_count ?? 0} vectors`
+                        : health.vector_db_status ?? '—',
+                    },
                   ].map(({ label, value }) => (
                     <div key={label} className="bg-slate-50 rounded-xl p-4">
                       <div className="text-xs text-slate-400 mb-1 uppercase tracking-wide">{label}</div>
@@ -458,23 +464,14 @@ export function AdminPage() {
                     </div>
                   ))}
                 </div>
-
-                {health.pinecone_stats && (
-                  <div className="px-6 pb-6">
-                    <div className="bg-slate-50 rounded-xl p-4">
-                      <div className="text-xs text-slate-400 mb-2 uppercase tracking-wide">Index Stats</div>
-                      <pre className="text-xs text-slate-700 overflow-auto">
-                        {JSON.stringify(health.pinecone_stats, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-center py-20 text-slate-400 text-sm">
                 Unable to fetch system information.
               </div>
             )}
+
+            <DangerZone />
           </div>
         )}
       </div>

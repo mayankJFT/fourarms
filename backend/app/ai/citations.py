@@ -21,7 +21,7 @@ class Citation:
 class CitedResponse:
     answer_text: str
     citations: List[Citation]
-    outcome: str  # OK / NO_INFO / ACCESS_DENIED / INSUFFICIENT_CONTEXT
+    outcome: str  # OK / NO_INFO / ACCESS_DENIED / INSUFFICIENT_CONTEXT / OUT_OF_SCOPE
 
 
 _SOURCE_MARKER_RE = re.compile(r"\[\s*SOURCE\s*(\d+)\s*\]", re.IGNORECASE)
@@ -53,11 +53,25 @@ class CitationEngine:
         CitedResponse
         """
         # Handle sentinel values
+        if "OUT_OF_SCOPE" in response_text:
+            return CitedResponse(
+                answer_text=(
+                    "That's outside what I can help with here — I'm scoped to answering questions about "
+                    "the documents in your library (contracts, SOWs, proposals, and similar), not general "
+                    "knowledge, legal advice, or requests to change how I behave. Ask me something about "
+                    "one of your documents and I'll dig in."
+                ),
+                citations=[],
+                outcome="OUT_OF_SCOPE",
+            )
+
         if "INSUFFICIENT_CONTEXT" in response_text:
             return CitedResponse(
                 answer_text=(
-                    "The documents in scope do not contain enough information "
-                    "to answer this question reliably."
+                    "I found some related material, but not enough to answer this confidently without "
+                    "risking a wrong or made-up detail. Could you help me narrow it down — for example, "
+                    "which document, clause, or time period this is about? Happy to take another pass "
+                    "once I have a bit more to go on."
                 ),
                 citations=[],
                 outcome="INSUFFICIENT_CONTEXT",

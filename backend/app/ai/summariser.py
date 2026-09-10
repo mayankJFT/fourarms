@@ -36,6 +36,7 @@ async def summarise_document(
         db=db,
         conversation_id=None,
         scope_doc_ids=[doc_id],
+        bypass_relevance_threshold=True,
     )
 
 
@@ -58,4 +59,5 @@ async def summarise_multiple(
         db=db,
         conversation_id=None,
         scope_doc_ids=doc_ids,
+        bypass_relevance_threshold=True,
     )
