@@ -44,7 +44,17 @@ function UserProfileChip({ name, role }: { name: string; role: string }) {
 export function ChatPage() {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
-  const { messages, conversationId, isLoading, sendMessage, loadConversation, newConversation } = useChat();
+  const {
+    messages,
+    conversationId,
+    conversationOwnerId,
+    conversationOwnerEmail,
+    isLoading,
+    sendMessage,
+    loadConversation,
+    newConversation,
+  } = useChat();
+  const isReadOnly = conversationOwnerId !== undefined && conversationOwnerId !== currentUser?.id;
   const { scopedDocIds, docSearch, setScopedDocIds, toggleScopedDoc, setDocSearch } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDocPicker, setShowDocPicker] = useState(false);
@@ -111,7 +121,7 @@ export function ChatPage() {
                 Access: {accessLabel}
               </span>
             </div>
-            {conversationId && (
+            {conversationId && !isReadOnly && (
               <button
                 onClick={() => void handleDeleteConversation()}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
@@ -121,6 +131,16 @@ export function ChatPage() {
               </button>
             )}
           </div>
+
+          {/* Read-only banner: SUPER_ADMIN viewing another user's conversation */}
+          {isReadOnly && (
+            <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-sm text-amber-800">
+              <BookOpen size={14} />
+              <span>
+                Viewing <span className="font-medium">{conversationOwnerEmail ?? 'another user'}</span>'s conversation — read-only
+              </span>
+            </div>
+          )}
 
           {/* Scope indicator */}
           {scopedDocIds.length > 0 && (
@@ -143,11 +163,15 @@ export function ChatPage() {
                   <BookOpen size={28} className="text-amber-400" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-1">Ask Aria anything</h3>
-                <p className="text-sm text-slate-500 max-w-sm mb-4">
+                <p className="text-sm text-slate-500 max-w-sm mb-1">
                   Search across all indexed QCI documents. Scope to specific files or ask freely.
                 </p>
+                <p className="text-xs text-slate-400 max-w-sm mb-4">
+                  Tip: for a summary of one specific document, use the <span className="font-medium">Summarise</span> button
+                  on that document's page in the Repository instead — it's more accurate than asking here.
+                </p>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {['What is this tender about?', 'Summarise the document', 'What are the eligibility criteria?'].map((q) => (
+                  {['What documents are available?', 'What tenders are currently in the repository?', 'What are the eligibility criteria for our tenders?'].map((q) => (
                     <button
                       key={q}
                       onClick={() => handleSend(q)}
@@ -205,7 +229,7 @@ export function ChatPage() {
                 </button>
               )}
             </div>
-            <ChatInput onSend={handleSend} isLoading={isLoading} />
+            <ChatInput onSend={handleSend} isLoading={isLoading} disabled={isReadOnly} />
           </div>
         </div>
       </div>

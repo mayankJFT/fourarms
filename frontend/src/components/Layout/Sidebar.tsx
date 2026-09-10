@@ -7,7 +7,6 @@ import {
   LogOut,
   MessageSquare,
   ShieldCheck,
-  Users2,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,12 +25,6 @@ const navItems: NavItem[] = [
   { to: '/chat', label: 'AI Chat', icon: <MessageSquare size={18} /> },
   { to: '/generate', label: 'Generate Docs', icon: <FileEdit size={18} /> },
   { to: '/workflow', label: 'Workflow', icon: <GitBranch size={18} /> },
-  {
-    to: '/hr',
-    label: 'HR Records',
-    icon: <Users2 size={18} />,
-    roles: ['SUPER_ADMIN', 'BOARD_ADMIN', 'TENDER_AUTHOR'],
-  },
   {
     to: '/admin',
     label: 'Admin',

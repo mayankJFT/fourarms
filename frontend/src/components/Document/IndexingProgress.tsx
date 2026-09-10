@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { CheckCircle, Circle, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Circle, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as documentsService from '../../services/documents';
@@ -31,7 +31,8 @@ export function IndexingProgress({ doc, onIndexed }: Props) {
   const { data: live } = useQuery<Document>({
     queryKey: ['doc-status', doc.id],
     queryFn: () => documentsService.getDoc(doc.id),
-    refetchInterval: (query) => (query.state.data?.is_indexed ? false : 3000),
+    refetchInterval: (query) =>
+      query.state.data?.is_indexed || query.state.data?.ingestion_error ? false : 3000,
     initialData: doc,
   });
 
@@ -39,8 +40,29 @@ export function IndexingProgress({ doc, onIndexed }: Props) {
     if (live?.is_indexed) {
       void queryClient.invalidateQueries({ queryKey: ['documents'] });
       onIndexed(live);
+    } else if (live?.ingestion_error) {
+      // Still refresh the grid/list so the failure badge shows up there too —
+      // just don't call onIndexed since nothing was actually indexed.
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
     }
-  }, [live?.is_indexed, live, queryClient, onIndexed]);
+  }, [live?.is_indexed, live?.ingestion_error, live, queryClient, onIndexed]);
+
+  if (live?.ingestion_error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <div className="flex items-start gap-2">
+          <AlertTriangle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-800">Processing failed</p>
+            <p className="text-xs text-red-600 mt-1">{live.ingestion_error}</p>
+            <p className="text-xs text-red-500 mt-2">
+              Try re-uploading the file, or upload a corrected copy as a new version.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const elapsedSec = elapsed / 1000;
   let activeStep = 0;

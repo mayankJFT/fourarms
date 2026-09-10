@@ -44,62 +44,28 @@ def require_role(*roles: str):
 # Pinecone metadata filter builder
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_pinecone_filter(user) -> dict:
+def build_pinecone_filter(user, db=None) -> dict:
     """
     Build a Pinecone metadata filter dict appropriate for *user*'s role.
 
-    SUPER_ADMIN   → no restriction (sees everything)
-    TENDER_AUTHOR → can see HR data in addition to normal docs
-    BOARD_ADMIN   → PUBLIC + INTERNAL docs, own division, own uploads, no HR
-    STANDARD_USER → same as BOARD_ADMIN
+    SUPER_ADMIN    → no restriction (sees everything: any confidentiality level,
+                     division, or category, including HR data)
+    everyone else  → their own uploads, plus any document explicitly shared with
+                     them (see DocumentShare / POST .../share) — no implicit
+                     sharing by division or confidentiality
     """
-    role = user.role
-
-    if role == SUPER_ADMIN:
+    if user.role == SUPER_ADMIN:
         return {}
 
-    if role == TENDER_AUTHOR:
-        # May see all confidentiality levels and HR data
-        return {
-            "$or": [
-                {"is_hr_data": {"$eq": True}},
-                {
-                    "$and": [
-                        {"is_hr_data": {"$eq": False}},
-                        {
-                            "confidentiality": {
-                                "$in": ["PUBLIC", "INTERNAL", "CONFIDENTIAL"]
-                            }
-                        },
-                    ]
-                },
-            ]
-        }
+    conditions = [{"owner_user_id": {"$eq": str(user.id)}}]
 
-    # BOARD_ADMIN and STANDARD_USER
-    conditions: list[dict] = [
-        {"is_hr_data": {"$eq": False}},
-        {"confidentiality": {"$in": ["PUBLIC", "INTERNAL"]}},
-    ]
+    if db is not None:
+        from app.documents.models import DocumentShare
+        shared_doc_ids = [
+            row[0] for row in
+            db.query(DocumentShare.document_id).filter(DocumentShare.shared_with_user_id == user.id).all()
+        ]
+        if shared_doc_ids:
+            conditions.append({"document_id": {"$in": shared_doc_ids}})
 
-    role_filter: dict = {"$and": conditions}
-
-    # Extend to allow own division docs or own uploaded docs
-    division_conditions: list[dict] = []
-
-    if user.division:
-        division_conditions.append({"division": {"$eq": user.division}})
-
-    # Own uploads
-    division_conditions.append({"owner_user_id": {"$eq": str(user.id)}})
-
-    if division_conditions:
-        # Allow if base conditions met OR if it's own content
-        role_filter = {
-            "$or": [
-                {"$and": conditions},
-                *division_conditions,
-            ]
-        }
-
-    return role_filter
+    return conditions[0] if len(conditions) == 1 else {"$or": conditions}

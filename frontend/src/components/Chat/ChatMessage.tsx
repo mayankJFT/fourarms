@@ -10,14 +10,14 @@ interface ChatMessageProps {
 }
 
 function GuardrailBadge({ outcome }: { outcome: string }) {
-  if (outcome === 'ANSWERED') {
+  if (outcome === 'OK' || outcome === 'ANSWERED') {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
         <CheckCircle size={11} /> Answered
       </span>
     );
   }
-  if (outcome === 'NO_INFO') {
+  if (outcome === 'NO_INFO' || outcome === 'INSUFFICIENT_CONTEXT') {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
         <Info size={11} /> No Info
@@ -28,6 +28,13 @@ function GuardrailBadge({ outcome }: { outcome: string }) {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
         <AlertCircle size={11} /> Access Denied
+      </span>
+    );
+  }
+  if (outcome === 'OUT_OF_SCOPE') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+        <Info size={11} /> Out of Scope
       </span>
     );
   }

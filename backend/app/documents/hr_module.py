@@ -12,6 +12,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.documents.embeddings import embed_texts
 from app.documents.models import HRRecord
 from app.documents.pinecone_client import pinecone_client
 
@@ -74,10 +75,6 @@ def ingest_hr_csv(file_path: str, uploader_id: int, db: Session) -> int:
             raise ValueError(f"HR CSV missing required columns: {missing}")
 
         rows = list(reader)
-
-    # Lazy-load embedding model
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer("all-MiniLM-L6-v2")
 
     processed = 0
     pinecone_vectors = []
@@ -144,7 +141,7 @@ def ingest_hr_csv(file_path: str, uploader_id: int, db: Session) -> int:
         # Build Pinecone vector
         text = _build_hr_text(row)
         try:
-            embedding = model.encode([text])[0].tolist()
+            embedding = embed_texts([text])[0]
             vector_id = f"hr-{employee_id}"
             pinecone_vectors.append({
                 "id": vector_id,

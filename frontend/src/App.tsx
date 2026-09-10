@@ -8,7 +8,6 @@ import { AuditLogPage } from './pages/AuditLogPage';
 import { ChatPage } from './pages/ChatPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DocGenPage } from './pages/DocGenPage';
-import { HRRecordsPage } from './pages/HRRecordsPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { RepositoryPage } from './pages/RepositoryPage';
@@ -74,14 +73,6 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <WorkflowPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/hr',
-    element: (
-      <ProtectedRoute roles={['SUPER_ADMIN', 'BOARD_ADMIN', 'TENDER_AUTHOR']}>
-        <HRRecordsPage />
       </ProtectedRoute>
     ),
   },

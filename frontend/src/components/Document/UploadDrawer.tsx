@@ -1,8 +1,7 @@
-import { Loader2, Upload, X } from 'lucide-react';
+import { Loader2, Sparkles, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import type { Confidentiality, UploadMetadata } from '../../types';
 
-const DOC_TYPES = ['PROPOSAL', 'MOU', 'AGREEMENT', 'WORK_ORDER'];
 const CONFIDENTIALITIES: Confidentiality[] = ['PUBLIC', 'INTERNAL', 'RESTRICTED', 'CONFIDENTIAL'];
 
 interface Props {
@@ -13,7 +12,6 @@ interface Props {
 
 export function UploadDrawer({ onClose, onUpload, isUploading }: Props) {
   const [file, setFile] = useState<File | null>(null);
-  const [docType, setDocType] = useState('PROPOSAL');
   const [confidentiality, setConfidentiality] = useState<Confidentiality>('INTERNAL');
   const [division, setDivision] = useState('');
   const [project, setProject] = useState('');
@@ -22,7 +20,7 @@ export function UploadDrawer({ onClose, onUpload, isUploading }: Props) {
 
   const handleSubmit = async () => {
     if (!file) return;
-    await onUpload(file, { doc_type: docType, confidentiality, division, project, tags });
+    await onUpload(file, { confidentiality, division, project, tags });
     onClose();
   };
 
@@ -78,27 +76,20 @@ export function UploadDrawer({ onClose, onUpload, isUploading }: Props) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Document Type *</label>
-              <select
-                value={docType}
-                onChange={(e) => setDocType(e.target.value)}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#1a56db] bg-white text-slate-800"
-              >
-                {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Confidentiality *</label>
-              <select
-                value={confidentiality}
-                onChange={(e) => setConfidentiality(e.target.value as Confidentiality)}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#1a56db] bg-white text-slate-800"
-              >
-                {CONFIDENTIALITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
+            <Sparkles size={14} className="flex-shrink-0 mt-0.5" />
+            <span>Aria will read the document and suggest a category (Legal, Financial, HR, Technical…) automatically after upload — you'll be able to confirm or change it.</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Confidentiality *</label>
+            <select
+              value={confidentiality}
+              onChange={(e) => setConfidentiality(e.target.value as Confidentiality)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#1a56db] bg-white text-slate-800"
+            >
+              {CONFIDENTIALITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           <div>

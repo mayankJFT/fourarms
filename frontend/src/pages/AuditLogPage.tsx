@@ -7,37 +7,11 @@ import { EmptyState } from '../components/UI/EmptyState';
 import { PageHeader } from '../components/UI/PageHeader';
 import apiClient from '../services/api';
 import type { AuditEntry } from '../types';
+import { actionBadgeClass, AUDIT_ACTION_TYPES } from '../utils/auditActions';
 
-const ACTION_TYPES = [
-  'LOGIN',
-  'LOGOUT',
-  'UPLOAD',
-  'QUERY',
-  'DOWNLOAD',
-  'ROLE_CHANGE',
-  'WORKFLOW_TRANSITION',
-  'DOC_GENERATE',
-  'EXPORT',
-  'DELETE',
-];
-
+const ACTION_TYPES = AUDIT_ACTION_TYPES;
 const PAGE_SIZE = 20;
-
-function actionBadge(action: string): string {
-  switch (action) {
-    case 'LOGIN': return 'bg-green-100 text-green-700';
-    case 'LOGOUT': return 'bg-slate-100 text-slate-600';
-    case 'UPLOAD': return 'bg-blue-100 text-blue-700';
-    case 'QUERY': return 'bg-purple-100 text-purple-700';
-    case 'DOWNLOAD': return 'bg-teal-100 text-teal-700';
-    case 'DELETE': return 'bg-red-100 text-red-700';
-    case 'ROLE_CHANGE': return 'bg-amber-100 text-amber-700';
-    case 'WORKFLOW_TRANSITION': return 'bg-indigo-100 text-indigo-700';
-    case 'DOC_GENERATE': return 'bg-violet-100 text-violet-700';
-    case 'EXPORT': return 'bg-cyan-100 text-cyan-700';
-    default: return 'bg-slate-100 text-slate-600';
-  }
-}
+const actionBadge = actionBadgeClass;
 
 export function AuditLogPage() {
   const [startDate, setStartDate] = useState('');

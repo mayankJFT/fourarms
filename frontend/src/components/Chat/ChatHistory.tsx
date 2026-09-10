@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquarePlus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../hooks/useAuth';
 import * as aiService from '../../services/ai';
 import type { Conversation } from '../../types';
 
@@ -12,6 +13,7 @@ interface ChatHistoryProps {
 
 export function ChatHistory({ activeId, onSelect, onNew }: ChatHistoryProps) {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
 
   const { data: conversations = [] } = useQuery<Conversation[]>({
     queryKey: ['conversations'],
@@ -61,17 +63,24 @@ export function ChatHistory({ activeId, onSelect, onNew }: ChatHistoryProps) {
               <div className="text-sm font-medium truncate">
                 {conv.title?.slice(0, 40) || 'Untitled chat'}
               </div>
+              {conv.user_email && (
+                <div className="text-xs text-blue-700 font-medium truncate mt-0.5">
+                  {conv.user_email}
+                </div>
+              )}
               <div className="text-xs text-slate-400 mt-0.5">
                 {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
               </div>
             </div>
-            <button
-              onClick={(e) => void handleDelete(e, conv.id)}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0 text-slate-400"
-              title="Delete conversation"
-            >
-              <Trash2 size={13} />
-            </button>
+            {conv.user_id === currentUser?.id && (
+              <button
+                onClick={(e) => void handleDelete(e, conv.id)}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0 text-slate-400"
+                title="Delete conversation"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
           </div>
         ))}
       </div>

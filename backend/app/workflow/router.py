@@ -6,10 +6,11 @@ import json
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.audit.logger import log_event
 from app.auth.jwt_utils import get_current_active_user
 from app.auth.models import User
 from app.auth.rbac import BOARD_ADMIN, SUPER_ADMIN
@@ -111,6 +112,34 @@ async def update_document(
     return doc
 
 
+# ── Delete a generated document (owner or admin, any state) ──────────────────
+
+@router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    doc_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    doc = _get_doc_or_404(doc_id, db)
+    _assert_owner_or_admin(doc, current_user)
+
+    # WorkflowEvent rows FK to this document — clear them first so the delete
+    # doesn't leave orphaned/dangling history rows behind.
+    db.query(WorkflowEvent).filter(WorkflowEvent.document_id == doc_id).delete(synchronize_session=False)
+    db.delete(doc)
+    db.commit()
+
+    log_event(
+        db=db,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        action="DOCUMENT_DELETE",
+        resource_type="GeneratedDocument",
+        resource_id=doc_id,
+        detail={"doc_type": doc.doc_type, "title": doc.title},
+    )
+
+
 # ── Submit for review (DRAFT → REVIEW) ───────────────────────────────────────
 
 @router.post("/documents/{doc_id}/submit", response_model=GeneratedDocumentOut)
@@ -156,6 +185,7 @@ async def request_revision(
 @router.get("/documents/{doc_id}/export")
 async def export_document(
     doc_id: str,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -169,6 +199,17 @@ async def export_document(
     # Record export timestamp
     doc.exported_at = datetime.now(timezone.utc)
     db.commit()
+
+    log_event(
+        db=db,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        action="DOCUMENT_EXPORT",
+        resource_type="GeneratedDocument",
+        resource_id=doc_id,
+        detail={"title": doc.title},
+        ip_address=request.client.host if request.client else None,
+    )
 
     safe_title = "".join(c if c.isalnum() or c in "-_ " else "_" for c in doc.title)[:80]
     filename = f"{safe_title}.docx"

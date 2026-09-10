@@ -45,14 +45,19 @@ class Document(Base):
     uploader_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     division: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     project: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    doc_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # proposal/mou/…
+    doc_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # AI-suggested or user-confirmed category
     confidentiality: Mapped[str] = mapped_column(String(50), default="INTERNAL")  # PUBLIC/INTERNAL/CONFIDENTIAL
+
+    # AI classification (see app.documents.classifier) — populated during ingestion
+    ai_detected_type: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # raw description, e.g. "Non-Disclosure Agreement"
+    category_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)  # False until the user reviews the AI suggestion
 
     is_scanned: Mapped[bool] = mapped_column(Boolean, default=False)
     ocr_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     page_count: Mapped[int] = mapped_column(Integer, default=0)
 
     is_indexed: Mapped[bool] = mapped_column(Boolean, default=False)
+    ingestion_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # set if ingestion failed; cleared on success/retry
     current_version: Mapped[int] = mapped_column(Integer, default=1)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -87,6 +92,22 @@ class DocumentVersion(Base):
     change_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     document: Mapped["Document"] = relationship("Document", back_populates="versions")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DocumentShare — explicit grant of access to a document beyond its uploader
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DocumentShare(Base):
+    __tablename__ = "document_shares"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id"), nullable=False, index=True)
+    shared_with_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    shared_by_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -151,10 +172,13 @@ class DocumentOut(BaseModel):
     ocr_confidence: Optional[float]
     page_count: int
     is_indexed: bool
+    ingestion_error: Optional[str] = None
     current_version: int
     created_at: datetime
     tags: List[str]
     ai_abstract: Optional[str]
+    ai_detected_type: Optional[str] = None
+    category_confirmed: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -170,6 +194,35 @@ class DocumentOut(BaseModel):
             return parsed if isinstance(parsed, list) else []
         except Exception:
             return []
+
+
+class CategoryUpdateRequest(BaseModel):
+    category: str                              # one of DOCUMENT_CATEGORIES, or a custom label if the user overrides
+    detected_type_description: Optional[str] = None  # free-text detail, mainly used when category == "Other"
+
+
+class DocumentEditRequest(BaseModel):
+    """Fields a user can edit on an existing document (not the file content — use versions for that)."""
+    title: Optional[str] = None
+    division: Optional[str] = None
+    project: Optional[str] = None
+    confidentiality: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class ShareRequest(BaseModel):
+    user_emails: List[str]
+
+
+class DocumentShareOut(BaseModel):
+    id: int
+    document_id: str
+    shared_with_user_id: int
+    shared_with_email: str
+    shared_by_user_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class DocumentVersionOut(BaseModel):

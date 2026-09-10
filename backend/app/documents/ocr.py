@@ -6,7 +6,20 @@ import logging
 from pathlib import Path
 from typing import List, Tuple
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
+
+_TESSDATA_CONFIG = f'--tessdata-dir "{settings.TESSDATA_PREFIX}"' if settings.TESSDATA_PREFIX else ""
+
+
+def _configure_pytesseract() -> None:
+    """Point pytesseract at a locally-extracted tesseract binary when the system PATH doesn't have one."""
+    if not settings.TESSERACT_CMD:
+        return
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
 
 
 def is_scanned_pdf(file_path: str) -> bool:
@@ -46,10 +59,13 @@ def ocr_pdf_pages(file_path: str) -> List[Tuple[int, str, float]]:
         from PIL import ImageEnhance
         import pytesseract
 
+        _configure_pytesseract()
         pages = convert_from_path(file_path, dpi=300)
     except Exception as exc:
         logger.error("pdf2image conversion failed for %s: %s", file_path, exc)
         return results
+
+    ocr_config = f"--psm 3 {_TESSDATA_CONFIG}".strip()
 
     for page_num, pil_image in enumerate(pages, start=1):
         try:
@@ -59,14 +75,14 @@ def ocr_pdf_pages(file_path: str) -> List[Tuple[int, str, float]]:
             enhanced = enhancer.enhance(2.0)
 
             # Extract text
-            text: str = pytesseract.image_to_string(enhanced, config="--psm 3")
+            text: str = pytesseract.image_to_string(enhanced, config=ocr_config)
 
             # Extract confidence scores per word
             try:
                 data = pytesseract.image_to_data(
                     enhanced,
                     output_type=pytesseract.Output.DICT,
-                    config="--psm 3",
+                    config=ocr_config,
                 )
                 confs = [int(c) for c in data["conf"] if str(c).lstrip("-").isdigit() and int(c) >= 0]
                 confidence = sum(confs) / len(confs) if confs else 0.0

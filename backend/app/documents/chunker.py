@@ -16,6 +16,14 @@ _HEADING_RE = re.compile(
     r")"
 )
 
+# A real heading is a short label ("1. Introduction", "II. Scope of Work"),
+# not a full sentence — but numbered/lettered contract clauses ("2. This
+# pricing does not include cost of any hardware...") also start with
+# "<number>. <Capital>" and would otherwise match _HEADING_RE just as well.
+# Cap the word count so long numbered clauses fall through to body text
+# instead of being misdetected as section headings.
+_HEADING_MAX_WORDS = 10
+
 # Repeated title header that pdfplumber extracts on every page
 _TITLE_STRIP_RE = re.compile(
     r"TENDER DOCUMENT FOR ENGAGEMENT.*?QCI/\d+/\d+\s*",
@@ -43,7 +51,7 @@ def _split_into_sections(text: str) -> list[tuple[Optional[str], str]]:
 
     for line in lines:
         stripped = line.strip()
-        if stripped and _HEADING_RE.match(stripped):
+        if stripped and _HEADING_RE.match(stripped) and len(stripped.split()) <= _HEADING_MAX_WORDS:
             # Flush previous section
             body = "\n".join(current_body).strip()
             if body:

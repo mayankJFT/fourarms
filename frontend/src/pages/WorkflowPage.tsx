@@ -10,6 +10,7 @@ import {
   GitBranch,
   Loader2,
   Send,
+  Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +20,7 @@ import { EmptyState } from '../components/UI/EmptyState';
 import { PageHeader } from '../components/UI/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import * as workflowService from '../services/workflow';
+import { useUIStore } from '../stores/uiStore';
 import type { DocState, GeneratedDocument, WorkflowEvent } from '../types';
 
 const STATE_TABS: { id: DocState | 'ALL'; label: string }[] = [
@@ -27,6 +29,17 @@ const STATE_TABS: { id: DocState | 'ALL'; label: string }[] = [
   { id: 'REVIEW', label: 'In Review' },
   { id: 'APPROVED', label: 'Approved' },
 ];
+
+/** content_json is {title, reference_number, sections: [{heading, content}]} — flatten
+ * it to plain text for a quick preview. */
+function flattenContentJson(contentJson: string): string {
+  try {
+    const parsed = JSON.parse(contentJson) as { sections?: { heading: string; content: string }[] };
+    return (parsed.sections ?? []).map((s) => `${s.heading}\n${s.content}`).join('\n\n');
+  } catch {
+    return '';
+  }
+}
 
 function StateTimeline({ events }: { events: WorkflowEvent[] }) {
   return (
@@ -136,16 +149,19 @@ function RevisionModal({
 function DocRow({
   doc,
   isAdmin,
+  canDelete,
   onAction,
 }: {
   doc: GeneratedDocument;
   isAdmin: boolean;
+  canDelete: boolean;
   onAction: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [actioning, setActioning] = useState<string | null>(null);
   const [showReviseModal, setShowReviseModal] = useState(false);
   const queryClient = useQueryClient();
+  const toast = useUIStore((s) => s.toast);
 
   const { data: history = [] } = useQuery<WorkflowEvent[]>({
     queryKey: ['workflow', 'history', doc.id],
@@ -191,6 +207,21 @@ function DocRow({
       a.download = `${doc.title.replace(/\s+/g, '_')}.docx`;
       a.click();
       URL.revokeObjectURL(url);
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
+    setActioning('delete');
+    try {
+      await workflowService.deleteGenerated(doc.id);
+      await queryClient.invalidateQueries({ queryKey: ['workflow', 'documents'] });
+      toast.success('Document deleted.');
+      onAction();
+    } catch {
+      toast.error('Could not delete this document.');
     } finally {
       setActioning(null);
     }
@@ -254,6 +285,16 @@ function DocRow({
                 Export .docx
               </button>
             )}
+            {canDelete && (
+              <button
+                onClick={() => void handleDelete()}
+                disabled={actioning === 'delete'}
+                title="Delete document"
+                className="flex items-center gap-1.5 text-xs px-2 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+              >
+                {actioning === 'delete' ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              </button>
+            )}
           </div>
           <div className="text-slate-300">
             {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -264,17 +305,20 @@ function DocRow({
           <div className="border-t border-slate-100 px-4 py-4 bg-slate-50">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Content preview */}
-              {doc.content && (
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Content Preview
-                  </h4>
-                  <div className="bg-white border border-slate-200 rounded-lg p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
-                    {doc.content.slice(0, 800)}
-                    {doc.content.length > 800 && '…'}
+              {(() => {
+                const preview = flattenContentJson(doc.content_json);
+                return preview ? (
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      Content Preview
+                    </h4>
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 text-sm text-slate-700 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
+                      {preview.slice(0, 800)}
+                      {preview.length > 800 && '…'}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
 
               {/* Timeline */}
               <StateTimeline events={history} />
@@ -294,7 +338,7 @@ function DocRow({
 }
 
 export function WorkflowPage() {
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, currentUser } = useAuth();
   const isAdmin = hasAnyRole(['SUPER_ADMIN', 'BOARD_ADMIN']);
   const [activeTab, setActiveTab] = useState<DocState | 'ALL'>('ALL');
   const [refreshKey, setRefreshKey] = useState(0);
@@ -399,6 +443,7 @@ export function WorkflowPage() {
                 key={doc.id}
                 doc={doc}
                 isAdmin={isAdmin}
+                canDelete={isAdmin || doc.owner_id === currentUser?.id}
                 onAction={() => setRefreshKey((k) => k + 1)}
               />
             ))}
